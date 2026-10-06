@@ -1,0 +1,25 @@
+# secrets & env
+.env
+*.key
+config/secrets.yaml
+
+# python
+__pycache__/
+*.pyc
+.venv/
+venv/
+.pytest_cache/
+
+# runtime state / evidence (keep out of git)
+findings/*.db
+findings/evidence/
+scope/*.yaml
+!scope/.gitkeep
+
+# corpora are large; pull via setup, don't commit
+corpora/*
+!corpora/.gitkeep
+
+# tool output
+*.log
+out/

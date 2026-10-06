@@ -1,0 +1,39 @@
+# Model routing — the whole point of this file is that the MODEL is a config
+# value, never baked into code. The day claude-opus-4-6 is deprecated, you
+# change `primary` here, run the eval set, and you are migrated. Zero code edits.
+
+backends:
+  # Anthropic (Claude). Uses the official anthropic SDK.
+  anthropic:
+    kind: anthropic
+    # API key comes from env ANTHROPIC_API_KEY (never commit it).
+    thinking: adaptive          # opus-4-6 / 5 / 5.5 use adaptive thinking, not budget_tokens
+    max_tokens: 16000
+
+  # Local open-weights floor via Ollama's OpenAI-compatible endpoint.
+  # No provider guardrails; always-available fallback. Capability is lower.
+  local:
+    kind: ollama
+    base_url: http://localhost:11434/v1
+    # model name is set per-role below (e.g. "qwen2.5-coder:32b")
+
+# Role -> (backend, model). Swap these as models are deprecated / as you get
+# CVP access on a stronger model.
+roles:
+  # Your current daily driver for bug-bounty reasoning.
+  primary:
+    backend: anthropic
+    model: claude-opus-4-6
+  # Tested, ready fallback. Opus 5 is the model CVP currently unlocks with
+  # reduced cyber restrictions (Opus 5.5 is NOT in CVP yet — see docs/CVP.md).
+  fallback:
+    backend: anthropic
+    model: claude-opus-5
+  # Offline floor — never gets deprecated, no network dependency.
+  local:
+    backend: local
+    model: qwen2.5-coder:32b
+
+# Order the agent tries roles in when a request is refused/blocked upstream.
+# A `refusal` stop_reason on `primary` cascades to the next role.
+fallback_order: [primary, fallback, local]

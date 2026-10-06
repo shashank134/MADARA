@@ -1,0 +1,28 @@
+# Per-program scope. COPY to scope/<program>.yaml (gitignored) and edit.
+# This is the single source of truth for what the agent is allowed to touch.
+# The HTTP tool denies anything not matching in_scope, by default.
+
+program: example-corp
+platform: hackerone            # hackerone | bugcrowd | intigriti | yeswehack | immunefi | self-hosted
+policy_url: https://hackerone.com/example-corp
+
+# Authorization context handed to the model's system prompt so legitimate,
+# in-scope work is framed correctly.
+authorization: |
+  Testing is authorized under the example-corp public bug bounty program.
+  Stop at proof-of-concept. Do not exfiltrate data beyond what proves impact.
+
+in_scope:
+  domains:
+    - "*.example.com"
+    - "api.example.com"
+  cidrs: []
+  # Explicit allow for apex + wildcard web assets.
+
+out_of_scope:
+  domains:
+    - "blog.example.com"        # e.g. hosted on a third party — never touch
+    - "*.marketing.example.com"
+  notes: "No DoS, no automated scanning above 5 req/s, no social engineering."
+
+rate_limit_rps: 5

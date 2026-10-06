@@ -1,0 +1,6 @@
+# Model-agnostic harness deps
+anthropic>=0.40.0      # Anthropic backend (Claude)
+openai>=1.40.0         # used ONLY to talk to local Ollama's OpenAI-compatible endpoint
+pyyaml>=6.0            # config loading
+httpx>=0.27.0          # scope-gated HTTP tool
+rich>=13.0.0           # readable agent console output
