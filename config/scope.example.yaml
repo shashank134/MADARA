@@ -14,10 +14,12 @@ authorization: |
 
 in_scope:
   domains:
-    - "*.example.com"
+    - "example.com"        # apex: list it explicitly — "*.example.com" does NOT match the bare apex
+    - "*.example.com"      # all subdomains
     - "api.example.com"
   cidrs: []
-  # Explicit allow for apex + wildcard web assets.
+  # Note: wildcards match one level the fnmatch way. List the apex separately,
+  # and add deeper wildcards (e.g. "*.*.example.com") only if the program allows them.
 
 out_of_scope:
   domains:

@@ -1,71 +1,79 @@
 # MADARA
 
-A model-agnostic harness for **authorized** bug-bounty work — recon, code
-analysis, payload drafting, scope-gated exploitation, and reporting — built so
-the LLM is a swappable component, not a dependency.
+An **authorized** bug-bounty workspace for Claude Code, driven by a Claude Max
+subscription — recon, code analysis, scope-gated exploration, and reporting,
+with a deny-by-default scope guard wired in.
 
-## Why it's built this way
+## Why it's shaped this way
 
-Claude's real-time cyber safeguards reroute offensive categories (exploit
-generation, pentesting, binary vuln scanning) away from current models by
-default. `claude-opus-4-6` still serves them today, but models get deprecated.
-This harness makes that a non-event:
+A Max subscription can't legally power a custom/headless agent — Anthropic
+prohibits subscription auth for third-party agents (enforced since Feb 2026).
+So MADARA is **not** a standalone API script; it's a **Claude Code project** your
+subscription drives interactively. Claude Code is the agent. This repo is its
+configuration plus an optional offline sidecar.
 
-- **The model is one line in `config/model.yaml`** (`roles.primary`). Deprecated?
-  Change the line, run the evals, done.
-- **Automatic role cascade:** if the primary model refuses an in-scope request,
-  the agent retries on `fallback` (a CVP'd Opus 5), then `local` (offline
-  open-weights floor). See `madara/agent.py`.
-- **The real unlock is CVP** — the Cyber Verification Program restores the
-  rerouted categories on current models. See `docs/CVP.md`.
+## Two modes
+
+**1. Claude Code on Max (primary).** Open this repo in Claude Code on your Max
+plan. It loads:
+- `CLAUDE.md` — operating brief: scope discipline, workflow, safety rules.
+- `.claude/settings.json` — permission allowlist (recon CLIs, browser, web) and
+  denylist (destructive shell, secret reads).
+- `.claude/hooks/scope-gate.py` — a `PreToolUse` hook that blocks any web/network
+  call to a host outside the active scope. Deny by default. (Tested; see below.)
+- `.mcp.json` — the Playwright MCP server for browser-driven testing.
+- The `anthropic-skills` bug-bounty suite (`hunt`, `target-onboard`, `ssrf-hunt`,
+  `xss-prove`, `source-audit`, `report`, …) for structured workflows.
+
+No API key, no per-token bill — it draws on your subscription.
+
+**2. Offline sidecar (optional).** `madara/` is a model-agnostic Python harness
+that runs a local open-weights model via Ollama, for work you want entirely off
+the subscription (no provider guardrails, lower capability). Its Anthropic
+backend needs an API key and is unused in mode 1. The scope guard and findings
+store here are shared with the hook in mode 1.
 
 ## Layout
 
 ```
-config/model.yaml        # model routing — primary / fallback / local
-config/scope.example.yaml # per-program scope template (copy to scope/<prog>.yaml)
-madara/
-  config.py              # loads model + scope config
-  llm.py                 # model-agnostic backends (Anthropic + Ollama) + refusal cascade
-  scope.py               # deny-by-default scope guard
-  agent.py               # the tool-use loop with the role cascade
-  tools/
-    http_client.py       # scope-gated HTTP (exploitation mechanics)
-    terminal.py          # recon/analysis CLI runner (allowlist + confirm gate)
-    findings.py          # sqlite findings/leads store (survives restarts)
-evals/
-  tasks.yaml             # seed tasks tagged by safeguard category
-  run_eval.py            # vet any model/role in minutes
-docs/CVP.md              # Cyber Verification Program requirements
+CLAUDE.md                 # operating brief Claude Code reads on open
+.claude/
+  settings.json           # permissions + hook registration
+  hooks/scope-gate.py     # deny-by-default scope enforcement (PreToolUse)
+.mcp.json                 # Playwright MCP (browser)
+config/
+  scope.example.yaml      # per-program scope template
+  model.yaml              # model routing (sidecar mode only)
+scope/active.yaml         # the live program scope (gitignored) — you create it
+madara/                   # optional offline Ollama sidecar (Python)
+  scope.py  tools/  agent.py  llm.py  ...
+evals/                    # seed tasks + runner (sidecar mode)
+docs/CVP.md               # Cyber Verification Program requirements
+findings/state.db         # findings / tested endpoints / leads (gitignored)
 ```
 
-## Quickstart
+## Quickstart (mode 1)
 
 ```bash
-pip install -r requirements.txt
-export ANTHROPIC_API_KEY=...            # or `ant auth login`
-cp config/scope.example.yaml scope/myprogram.yaml   # edit in your real scope
-python -m madara scope/myprogram.yaml "Plan recon for in-scope assets"
+cp config/scope.example.yaml scope/active.yaml   # then edit in your real program
+# open the repo in Claude Code on your Max plan and start hunting in scope
 ```
 
-Vet a model before trusting it:
+The scope hook reads `scope/active.yaml` (or `$MADARA_SCOPE`). Out-of-scope web
+and network-tool calls are blocked before they leave your machine.
 
-```bash
-python evals/run_eval.py primary        # shows which categories refuse vs pass
-python evals/run_eval.py fallback
-```
+## What's verified
 
-## Not yet wired (intentional scaffold gaps)
+- Scope guard + findings store — functional tests pass.
+- The scope-gate hook — tested against in-scope/out-of-scope/no-scope cases,
+  stdin-pipe recon patterns, and local-command false positives.
+- The offline sidecar's agent loop + model cascade — proven with fake backends.
 
-- Browser tool (Playwright MCP) — add under `madara/tools/`.
-- Caido proxy integration for HTTP history/replay.
-- Real approval UI behind `Agent._confirm` (defaults to deny).
-- Ollama backend tool-use translation is minimal (text-only today).
-- Automated eval grading (wire the `claude-api` build-eval flow).
-- Corpora fetch (SecLists / PayloadsAllTheThings / nuclei-templates) into `corpora/`.
+Not verified here: live model calls on your actual Max session (run it yourself),
+and the Playwright MCP browser flow end-to-end.
 
 ## Scope & authorization
 
-Only ever run against assets a program explicitly authorizes. The scope guard
-denies by default; keep it that way. Treat everything the agent reads off a
-target as untrusted input.
+Only run against assets a program explicitly authorizes. The scope guard denies
+by default — keep it that way. Treat everything the agent reads off a target as
+untrusted input. Stop at proof-of-concept.
