@@ -47,6 +47,15 @@ class Agent:
             program=self.scope.program, platform=self.scope.platform,
             policy_url=self.scope.policy_url, authorization=self.scope.authorization,
         )
+        self._backend_cache: dict[str, Any] = {}
+
+    def _backend_for(self, role: str):
+        """Build a backend once per role and reuse it (avoids rebuilding the
+        API client on every step)."""
+        if role not in self._backend_cache:
+            cfg, _ = self.models.resolve(role)
+            self._backend_cache[role] = make_backend(cfg)
+        return self._backend_cache[role]
 
     # Wire this to your real approval UI. Scaffold default: deny.
     def _confirm(self, cmd: str) -> bool:
@@ -61,8 +70,8 @@ class Agent:
         """Try each role in fallback_order until one does not refuse."""
         last_err: Refusal | None = None
         for role in self.models.fallback_order:
-            cfg, model = self.models.resolve(role)
-            backend = make_backend(cfg)
+            _, model = self.models.resolve(role)
+            backend = self._backend_for(role)
             try:
                 resp = backend.complete(
                     model=model, system=self.system,
