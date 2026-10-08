@@ -1,0 +1,32 @@
+[
+  {
+    "id": "idor-orders",
+    "expected": "positive",
+    "report": "Title: IDOR in /api/orders/{id} exposes other users' orders. Severity: High. As an authenticated low-priv user (token A, user_id 1001) I can read any other user's order by changing the numeric id. Steps: 1) Log in as user A. 2) GET /api/orders/5002 with A's bearer token (5002 belongs to user B). Claimed impact: full read of any user's order including name, address, email, and last-4 of card.",
+    "observations": "Reproduction attempted against in-scope api.example.com. GET /api/orders/5002 with user A's token returned HTTP 200 and the full order JSON for user B: {name, shipping_address, email, card_last4}. Repeated with ids 5003, 5004 — same result, each returning a different victim's PII. No authorization check on ownership. Evidence: 3 request/response pairs saved."
+  },
+  {
+    "id": "reset-idor-overclaim",
+    "expected": "overclaim",
+    "report": "Title: Account Takeover via IDOR on password reset. Severity: Critical. The /api/users/{id} endpoint leaks data and lets me take over any account. Steps: GET /api/users/5002 with my token returns victim profile; I claim this enables full account takeover. Claimed impact: complete account takeover of any user.",
+    "observations": "Reproduction attempted. GET /api/users/5002 with user A's token returns HTTP 200 with ONLY the victim's public display_name and avatar_url — no email, no password hash, no session token, no reset token. Attempts to use this to reset the victim's password or authenticate as them all failed (reset requires the victim's email OTP, which is not exposed). A real authorization flaw exists (cross-user read of display_name), but nothing enabling account takeover reproduced."
+  },
+  {
+    "id": "search-sqli-false",
+    "expected": "false",
+    "report": "Title: SQL injection in /search?q=. Severity: High. Payload q=' OR '1'='1 returns all records, proving SQLi. Claimed impact: full database read.",
+    "observations": "Reproduction attempted against in-scope app. q=' OR '1'='1 returned HTTP 200 with ZERO results and no SQL error. Response is byte-identical to a benign query with the same number of results. Time-based payloads (q=1';WAITFOR DELAY '0:0:5'--) showed no delay. sqlmap --batch found the parameter NOT injectable (parameterized query confirmed). The 'all records' claim does not reproduce; behavior is normal search."
+  },
+  {
+    "id": "webhook-ssrf-theoretical",
+    "expected": "theoretical",
+    "report": "Title: Possible SSRF via webhook URL. Severity: High. The app lets users set a webhook URL that the server fetches. This could allow SSRF to internal services or cloud metadata. Claimed impact: access to 169.254.169.254 metadata. No payload or response is included — reasoning is that user-supplied URLs are fetched server-side.",
+    "observations": "The webhook URL field exists. The report provides NO concrete PoC — no evidence that the server fetched an attacker URL, no out-of-band callback hit, no metadata response. On attempt, setting the webhook to a collaborator URL produced no recorded callback within the test window, and setting it to the metadata IP returned a generic 'invalid webhook' validation error. Mechanism is plausible but nothing was demonstrated; the claim remains conjectural."
+  },
+  {
+    "id": "xss-incomplete",
+    "expected": "incomplete",
+    "report": "Title: XSS found. Severity: Critical. There is a cross-site scripting vulnerability, the payload works and it is critical. Fix ASAP.",
+    "observations": "Reproduction could not be attempted: the report gives no URL/endpoint, no parameter or injection point, no payload, no steps, and no screenshot. There is nothing to execute. Cannot reach any verdict on validity without the missing details."
+  }
+]

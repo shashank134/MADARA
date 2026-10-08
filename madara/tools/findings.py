@@ -25,6 +25,16 @@ CREATE TABLE IF NOT EXISTS leads (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     program TEXT, lead TEXT, status TEXT DEFAULT 'open', created_at REAL
 );
+CREATE TABLE IF NOT EXISTS verdicts (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    program TEXT, report_id TEXT,
+    verdict TEXT,          -- positive|false|overclaim|theoretical|incomplete
+    confidence REAL,
+    claimed_impact TEXT, demonstrated_impact TEXT,
+    claimed_severity TEXT, assessed_severity TEXT,
+    detail TEXT,           -- JSON: evidence, missing_info, rationale, etc.
+    created_at REAL
+);
 """
 
 
@@ -34,7 +44,7 @@ class Findings:
     input_schema = {
         "type": "object",
         "properties": {
-            "kind": {"type": "string", "enum": ["finding", "tested", "lead"]},
+            "kind": {"type": "string", "enum": ["finding", "tested", "lead", "verdict"]},
             "data": {"type": "object"},
         },
         "required": ["kind", "data"],
@@ -64,6 +74,20 @@ class Findings:
             self.db.execute(
                 "INSERT INTO leads(program,lead,status,created_at) VALUES(?,?,?,?)",
                 (self.program, data.get("lead"), data.get("status", "open"), now))
+        elif kind == "verdict":
+            # A verify-poc / verify-report result. `detail` holds the full JSON
+            # (evidence, missing_info, rationale, what_would_change_verdict…).
+            known = {"report_id", "verdict", "confidence", "claimed_impact",
+                     "demonstrated_impact", "claimed_severity", "assessed_severity"}
+            self.db.execute(
+                "INSERT INTO verdicts(program,report_id,verdict,confidence,claimed_impact,"
+                "demonstrated_impact,claimed_severity,assessed_severity,detail,created_at)"
+                " VALUES(?,?,?,?,?,?,?,?,?,?)",
+                (self.program, data.get("report_id"), data.get("verdict"),
+                 data.get("confidence"), data.get("claimed_impact"),
+                 data.get("demonstrated_impact"), data.get("claimed_severity"),
+                 data.get("assessed_severity"),
+                 json.dumps({k: v for k, v in data.items() if k not in known}), now))
         else:
             return {"error": "unknown_kind"}
         self.db.commit()
@@ -72,7 +96,7 @@ class Findings:
     def summary(self) -> dict[str, Any]:
         cur = self.db.cursor()
         out = {}
-        for t in ("findings", "tested", "leads"):
+        for t in ("findings", "tested", "leads", "verdicts"):
             cur.execute(f"SELECT COUNT(*) FROM {t} WHERE program=?", (self.program,))
             out[t] = cur.fetchone()[0]
         return out

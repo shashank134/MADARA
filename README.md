@@ -33,6 +33,23 @@ the subscription (no provider guardrails, lower capability). Its Anthropic
 backend needs an API key and is unused in mode 1. The scope guard and findings
 store here are shared with the hook in mode 1.
 
+## The verification gate (anti-overclaim)
+
+The headline feature: before you trust or submit a finding — yours or another
+model's — the gate **reproduces the PoC** and returns one verdict only:
+`positive`, `false`, `overclaim`, `theoretical`, or `incomplete`. It's the
+antidote to findings that get over-hyped and then collapse on reproduction.
+
+- `/verify-poc` — reproduce interactively against the in-scope target, classify.
+- `verify-report` workflow — adversarial skeptic panel + adjudicator over a
+  report plus its observations.
+- It reproduces through the right channel per vuln class — terminal/HTTP, a real
+  **browser** (XSS must execute), **Caido** (session/auth replay), or an
+  **out-of-band** listener (blind classes) — never just curl.
+- The report is untrusted; observations are ground truth; severity is derived
+  from what reproduces, never copied from the claim.
+- Taxonomy, decision tree, channels, calibration: `docs/VERDICTS.md`.
+
 ## Layout
 
 ```

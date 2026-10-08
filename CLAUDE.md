@@ -34,6 +34,25 @@ proof-of-concept.
    session can resume.
 4. For a confirmed bug, assemble a report (impact, reproduction, remediation).
 
+## Verifying findings (the gate against overclaim)
+
+Before trusting or submitting ANY finding — yours or another model's — put it
+through the verification gate. It reproduces the PoC and returns exactly one
+verdict: `positive`, `false`, `overclaim`, `theoretical`, or `incomplete`.
+
+- `/verify-poc` (skill) — reproduce interactively against the in-scope target,
+  then classify. `.claude/skills/verify-poc/SKILL.md`.
+- `verify-report` (workflow) — adversarial skeptic panel + adjudicator over a
+  report plus its observations. `.claude/workflows/verify-report.js`.
+- Decision tree, channel matrix, and anti-gaming rules: `docs/VERDICTS.md`.
+
+Reproduce through the channel the vuln class demands — terminal/HTTP (curl,
+httpx, sqlmap), a real browser (Playwright) for XSS/UI bugs that must *execute*,
+Caido for session/auth replay, and an out-of-band listener for blind classes.
+Never force everything through curl. Observations are ground truth; the report's
+own claims and severity are never trusted. Store each verdict to the `verdicts`
+table (`madara/tools/findings.py`).
+
 ## Available skills
 
 The `anthropic-skills` bug-bounty suite is the preferred way to run structured
